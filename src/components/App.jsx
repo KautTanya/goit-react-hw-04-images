@@ -1,153 +1,119 @@
 import { MagnifyingGlass } from 'react-loader-spinner';
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import { SearchBar } from './Searchbar/SearchBar';
 import { ImageGallery } from './ImageGallery/ImageGallery';
 import { getImages } from 'API/Api';
 import { LoadButton } from './Button/Button';
 import Modal from './Modal/Modal';
 import { Block } from './App.styled';
-import { toast, ToastContainer } from 'react-toastify';
+// import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-export class App extends Component {
-  state = {
-    query: '',
-    images: [],
-    isLoading: false,
-    error: false,
-    page: 1,
-    total: null,
-    totalHits: null,
-    showModal: false,
-    modalData: {
-      bigImg: '',
-      alt: '',
-    },
+export default function App(){
+  const [query, setQuery] = useState('');
+  const [images, setImages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(null);
+  const [totalHits, setTotalHits] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [bigImg, setModalBigImg] = useState('');
+  const [modalAlt, setModalAlt] = useState('');
+
+
+  const  updateQuery = value => {
+      setQuery(value.query);
+      setPage(1);
+      setImages([]);
   };
-  updateQuery = value => {
-    this.setState({
-      query: value.query,
-      page: 1,
-      images: [],
-    });
-    
-  };
-  getImg = async () => {
-   
+
+  const getImg = async () => {
     try {
-      if (!this.state.query) {
-        return 
+      if (!query) {
+        return; 
       }
 
-      this.setState({ isLoading: true });
-
-      const pictures = await getImages(this.state.page, this.state.query);
-      
-      this.setState(prevState => ({
-        images: [...prevState.images, ...pictures.images],
-        isLoading: false,
-        total: pictures.total,
-        totalHits: pictures.totalHits,
-      }));
-      
-      return this.toastify();
+      setIsLoading(true);
+      const pictures = await getImages(page, query);
+      setImages(state => [...state, ...pictures.images]);
+      setIsLoading(false);
+      setTotal(pictures.total);
+      setTotalHits(pictures.totalHits);
     } catch (error) {
-      this.setState({ error: true, isLoading: false });
+      setError(true);
+      setIsLoading(false);
+      console.log(error);
     }
   };
-  async componentDidUpdate(_, prevState) {
-    const prevRequest = prevState.query;
-    const nextRequest = this.state.query;
-    const prevPage = prevState.page;
-    const nextPage = this.state.page;
-
-    if (prevRequest !== nextRequest || prevPage !== nextPage ) {
-    
-          this.getImg();
+  useEffect(() => {
+    if (!query) {
+      return;
     }
-   
-  }
+    getImg();
+  }, [page, query]);
 
-  toastify = () => {
-    const { total} = this.state;
-    if (total === 0) {
-      return toast.error(
-            'Sorry, there are no images matching your search query. Please try again.'
-          );
-    }
-  
-  }
-    loadMore = async () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
+
+  const loadMore = async () => {
+    setPage(state => state + 1);
   };
-  openModal = evt => {
+  const openModal = evt => {
   
     if (evt.target.nodeName !== 'IMG') {
       return;
     }
-    this.setState({
-      showModal: true,
-      modalData: {
-        bigImg: evt.target.dataset.src,
-        alt: evt.target.getAttribute('alt'),
-      },
-    });
+    setShowModal(true);
+    setModalBigImg(evt.target.dataset.src);
+    setModalAlt(evt.target.getAttribute('alt'));
   };
-  closeModal = () => {
-    this.setState({
-      showModal: false,
-      modalData: {
-        bigImg: '',
-        alt: '',
-      },
-    });
+  const closeModal = () =>{
+    setShowModal(false);
+    setModalBigImg('');
+    setModalAlt('');
   };
-  render() {
-    const { images, isLoading, total, totalHits, showModal, modalData } =
-      this.state;
-    const { bigImg, alt } = modalData;
-    return (
-      <Block>
-        <SearchBar updateQuery={this.updateQuery} />
-       
-         {images.length !== 0 && (
-          <>
-            <ImageGallery data={images} onClick={this.openModal} />{' '}
-          </>
-        )}
-        {total >= 12 && images.length !== totalHits && !isLoading && (
-          <LoadButton click={this.loadMore} />
-        )}
 
-        {isLoading && (
-          <MagnifyingGlass
-              visible={true}
-              height="180"
-              width="180"
-              ariaLabel="MagnifyingGlass-loading"
-              wrapperStyle={{}}
-              wrapperClass="MagnifyingGlass-wrapper"
-              glassColor = '#c0efff'
-              color = '#e15b64'
-        />
-        )}
+  return (
+    <Block>
+      <SearchBar updateQuery={updateQuery} />
+     
+       {images.length !== 0 && (
+        <>
+          <ImageGallery data={images} onClick={openModal} />{' '}
+        </>
+      )}
+      {total >= 12 && images.length !== totalHits && !isLoading && (
+        <LoadButton click={loadMore} />
+      )}
 
-        {showModal && <Modal src={bigImg} alt={alt} close={this.closeModal} />}
-        <ToastContainer
-          position="top-right"
-          autoClose={2500}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="colored"
-        />
-      </Block>
-    );
-  }
+      {isLoading && (
+        <MagnifyingGlass
+            visible={true}
+            height="180"
+            width="180"
+            ariaLabel="MagnifyingGlass-loading"
+            wrapperStyle={{}}
+            wrapperClass="MagnifyingGlass-wrapper"
+            glassColor = '#c0efff'
+            color = '#e15b64'
+      />
+      )}
+
+      {showModal && <Modal src={bigImg} alt={modalAlt} close={closeModal} />}
+      {/* <ToastContainer
+        position="top-right"
+        autoClose={2500}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      /> */}
+    </Block>
+  );
 }
+
+
+ 
